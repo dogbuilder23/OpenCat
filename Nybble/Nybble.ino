@@ -357,7 +357,7 @@ void setup() {
   } while (devStatus);
 
   //opening music
-#if WALKING_DOF == 8
+#if WALKING_DOF == 8  // TODO(Doug): Change if using shoulder roll servos.
   playMelody(MELODY);
 #endif
 
@@ -380,10 +380,10 @@ void setup() {
     strcpy(lastCmd, "rest");
     motion.loadBySkillName("rest");
     for (int8_t i = DOF - 1; i >= 0; i--) {
-      pulsePerDegree[i] = float(PWM_RANGE) / servoAngleRange(i);
+   	  pwmRange[i] = servoMaxs[i] - servoMins[i];
+      pulsePerDegree[i] = float(pwmRange[i]) / servoAngleRange(i);
       servoCalibs[i] = servoCalib(i);
-      calibratedDuty0[i] =  SERVOMIN + PWM_RANGE / 2 + float(middleShift(i) + servoCalibs[i]) * pulsePerDegree[i]  * rotationDirection(i) ;
-      //PTL(SERVOMIN + PWM_RANGE / 2 + float(middleShift(i) + servoCalibs[i]) * pulsePerDegree[i] * rotationDirection(i) );
+      calibratedDuty0[i] =  servoMins[i] + pwmRange[i] / 2 + float(middleShift(i) + servoCalibs[i]) * pulsePerDegree[i]  * rotationDirection(i) ;
       calibratedPWM(i, motion.dutyAngles[i]);
       delay(100);
     }
@@ -628,8 +628,10 @@ void loop() {
             PT(token);
             printList(target, 2);
             if (token == 'c' || token == 'm') {
-              int duty = SERVOMIN + PWM_RANGE / 2 + float(middleShift(target[0])  + servoCalibs[target[0]] + motion.dutyAngles[target[0]]) * pulsePerDegree[target[0]] * rotationDirection(target[0]);
-              pwm.setPWM(pin(target[0]), 0,  duty);
+              int duty = servoMins[target[0]] + pwmRange[target[0]] / 2 + float(middleShift(target[0])  + servoCalibs[target[0]] + motion.dutyAngles[target[0]]) * pulsePerDegree[target[0]] * rotationDirection(target[0]) ;
+              pwm.setPWM(pin(target[0]), 0,  duty);   // Note: Doesn't compare to servoMaxs or servoMins
+              PTF("duty: ");
+              PTL(duty);
             }
             break;
           }

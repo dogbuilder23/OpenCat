@@ -230,13 +230,26 @@ void setup() {
     strcpy(lastCmd, "rest");
     motion.loadBySkillName("rest");
     for (byte i = 0; i < DOF; i++) {
-      pulsePerDegree[i] = float(PWM_RANGE) / servoAngleRange(i);
+      pwmRange[i] = servoMaxs[i] - servoMins[i];
+      pulsePerDegree[i] = float(pwmRange[i]) / servoAngleRange(i);
       servoCalibs[i] = servoCalib(i);
-      calibratedDuty0[i] =  SERVOMIN + PWM_RANGE / 2 + float(middleShift(i) + servoCalibs[i]) * pulsePerDegree[i]  * rotationDirection(i) ;
+      calibratedDuty0[i] =  servoMins[i] + pwmRange[i] / 2 + float(middleShift(i) + servoCalibs[i]) * pulsePerDegree[i]  * rotationDirection(i) ;
       calibratedPWM(i, motion.dutyAngles[i]);
+      // TODO(Doug): Nybble.ino has delay(100)
     }
     shutServos();
     token = 'd';
+    printIndexList();
+    PT("servoMins:\t");
+    printIntList(servoMins);
+    PT("servoMaxs:\t");
+    printIntList(servoMaxs);
+    PT("pwmRange:\t");
+    printIntList(pwmRange);
+    PT("pulsePerDegree:\t");
+    printIntList(pulsePerDegree);
+    PT("middleShifts:\t");
+    printIntList(middleShifts);
   }
   beep(30);
   // start message
@@ -359,7 +372,7 @@ void loop() {
         if (strcmp(lastCmd, "c")) { //first time entering the calibration function
           motion.loadBySkillName("calib");
           transform(motion.dutyAngles, 0.5);
-          shutServos();
+          shutServos();     // TODO(Doug): Do we want to remove this?  Nybble.ino does not have it.
         }
         if (inLen == 2)
           servoCalibs[target[0]] = target[1];
@@ -375,14 +388,15 @@ void loop() {
       }
       else if (token == 'm') {
         //PTLF("moving [ targetIdx, angle ]: ");
-        motion.dutyAngles[target[0]] = target[1];
+    	motion.dutyAngles[target[0]] = currentAng[target[0]] = target[1];
       }
       PT(token);
       printList(target, 2);
 
-      int duty = SERVOMIN + PWM_RANGE / 2 + float(middleShift(target[0])  + servoCalibs[target[0]] + motion.dutyAngles[target[0]]) * pulsePerDegree[target[0]] * rotationDirection(target[0]) ;
-      pwm.setPWM(pin(target[0]), 0,  duty);
-
+      int duty = servoMins[target[0]] + pwmRange[target[0]] / 2 + float(middleShift(target[0])  + servoCalibs[target[0]] + motion.dutyAngles[target[0]]) * pulsePerDegree[target[0]] * rotationDirection(target[0]) ;
+      pwm.setPWM(pin(target[0]), 0,  duty);   // Note: Doesn't compare to servoMaxs or servoMins
+      PTF("duty: ");
+      PTL(duty);
     }
 
     else if (Serial.available() > 0) {
@@ -408,7 +422,7 @@ void loop() {
         PTL(freeMemory());
 #endif
         timer = 0;
-        if (strcmp(cmd, "balance") && strcmp(cmd, "lifted") && strcmp(cmd, "dropped") )
+        if (strcmp(cmd, "lifted") && strcmp(cmd, "dropped") ) // removed: strcmp(cmd, "balance") && 
           strcpy(lastCmd, cmd);
         // if posture, start jointIdx from 0
         // if gait, walking DOF = 8, start jointIdx from 8

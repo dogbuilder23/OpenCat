@@ -159,7 +159,7 @@ byte pins[] = {4, 3, 11, 12,
 #define HEAD
 #define TAIL
 #define X_LEG
-#define WALKING_DOF 8
+#define WALKING_DOF 8  // TODO(Doug): Change to use 12 servos
 
 #else
 #ifdef BIT
@@ -223,6 +223,14 @@ byte right[] = {
 #define KUDO_MAX 621*PWM_FACTOR
 #define KUDO_RANGE 220
 
+#define MG996R_MIN 225*PWM_FACTOR //225
+#define MG996R_MAX 525*PWM_FACTOR
+#define MG996R_LEFT_MIN 225*PWM_FACTOR
+#define MG996R_LEFT_MAX 600*PWM_FACTOR
+#define MG996R_RIGHT_MIN 150*PWM_FACTOR
+#define MG996R_RIGHT_MAX 525*PWM_FACTOR 
+#define MG996R_RANGE 150
+
 // called this way, it uses the default address 0x40
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 // you can also call it with a different address you want
@@ -232,6 +240,17 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 // want these to be as small/large as possible without hitting the hard stop
 // for max range. You'll have to tweak them as necessary to match the servos you
 // have!
+#ifdef CUSTOM_SERVOS
+#ifdef PDIHV5523MG
+#define SERVOMIN  564  // Trying to use one per servo (not this).  This would be max for a shoulder servo.
+#define SERVOMAX  2436 // Trying to use one per servo (not this).  This would be max for a shoulder servo.
+#define SERVO_ANG_RANGE 192  // Trying to use one per servo (not this).  This would be value for a shoulder servo.
+#else
+#ifdef MG996R
+#define SERVOMIN  MG996R_MIN // this is the 'minimum' pulse length count (out of 4096)
+#define SERVOMAX  MG996R_MAX // this is the 'maximum' pulse length count (out of 4096)
+#define SERVO_ANG_RANGE MG996R_RANGE
+#else
 #ifndef KUDO
 #define SERVOMIN  MG92B_MIN // this is the 'minimum' pulse length count (out of 4096)
 #define SERVOMAX  MG92B_MAX // this is the 'maximum' pulse length count (out of 4096)
@@ -241,8 +260,11 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 #define SERVOMAX  KUDO_MAX // this is the 'maximum' pulse length count (out of 4096)
 #define SERVO_ANG_RANGE KUDO_RANGE
 #endif
+#endif
+#endif
+#endif
 
-#define PWM_RANGE (SERVOMAX - SERVOMIN)
+// #define PWM_RANGE (SERVOMAX - SERVOMIN)  // Replaced with a value per servo, for CUSTOM_SERVOS.
 
 float degPerRad = 180 / M_PI;
 float radPerDeg = M_PI / 180;
@@ -260,8 +282,56 @@ int8_t melody[] = {8, 13, 10, 13, 8,  0,  5,  8,  3,  5, 8,
 //byte pins[] = {11, 12, 4, 16, 16, 16, 16, 16, 9,14,1,6,8,15,0,7};//tail version
 
 int8_t calibs[] = {0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0};
-int8_t middleShifts[] = {0, 15, 0, 0,
-                         -45, -45, -45, -45,
+
+                              
+#ifdef CUSTOM_SERVOS
+int8_t rotationDirections[] = {1, -1, 1, 1,
+                               1, -1, 1, -1,
+                               1, -1, -1, 1,
+                               1, -1, -1, 1  // Doug: why knees opposite from orig?
+                              };
+
+int8_t middleShifts[] = {0, 0, 0, 0,
+                         0, 0, 0, 0,
+                         0, 0, 0, 0,
+                         -25, -25, 25, 25
+                        };
+#ifdef PDIHV5523MG
+byte servoAngleRanges[] =  {192, 192, 192, 192,
+                            192, 192, 192, 192,
+                            192, 192, 192, 192,
+                            154, 154, 154, 154,   // knees use a smaller range
+                           };
+int16_t servoMins[] =  {500, 500, 500, 500,
+                        500, 500, 500, 500,
+                        500, 500, 500, 500,
+                        898, 500, 898, 500,  
+                       };
+int16_t servoMaxs[] =  {2500, 2500, 2500, 2500,
+                        2500, 2500, 2500, 2500,
+                        2500, 2500, 2500, 2500,
+                        2500, 2101, 2500, 2101,
+                       };
+#else // values for MG996R
+byte servoAngleRanges[] =  {MG996R_RANGE, MG996R_RANGE, MG996R_RANGE, MG996R_RANGE,
+                            MG996R_RANGE, MG996R_RANGE, MG996R_RANGE, MG996R_RANGE,
+                            MG996R_RANGE, MG996R_RANGE, MG996R_RANGE, MG996R_RANGE,
+                            MG996R_RANGE, MG996R_RANGE, MG996R_RANGE, MG996R_RANGE,
+                           };
+int16_t servoMins[] =  {MG996R_MIN, MG996R_MIN, MG996R_MIN, MG996R_MIN,
+                            MG996R_MIN, MG996R_MIN, MG996R_MIN, MG996R_MIN,
+                            MG996R_LEFT_MIN, MG996R_RIGHT_MIN, MG996R_RIGHT_MIN, MG996R_LEFT_MIN,
+                            MG996R_LEFT_MIN, 500, MG996R_RIGHT_MIN, MG996R_RIGHT_MIN,
+                           };
+int16_t servoMaxs[] =  {MG996R_MAX, MG996R_MAX, MG996R_MAX, MG996R_MAX,
+                            MG996R_MAX, MG996R_MAX, MG996R_MAX, MG996R_MAX,
+                            MG996R_LEFT_MAX, MG996R_RIGHT_MAX, MG996R_RIGHT_MAX, MG996R_LEFT_MAX,
+                            MG996R_LEFT_MAX, MG996R_LEFT_MAX, MG996R_RIGHT_MAX, MG996R_LEFT_MAX,
+                           };
+#endif // end of MG996R
+#else  // not CUSTOM_SERVOS
+int8_t middleShifts[] = {0, 0, 0, 0,
+                         0, 0, 0, 0, // -45, -45, -45, -45,
                          0, 0, 0, 0,
                          0, 0, 0, 0
                         };
@@ -270,12 +340,23 @@ int8_t rotationDirections[] = {1, -1, 1, 1,
                                1, -1, -1, 1,
                                -1, 1, 1, -1
                               };
+                                                                    
 #ifndef KUDO
 byte servoAngleRanges[] =  {MG90D_RANGE, MG90D_RANGE, MG90D_RANGE, MG90D_RANGE,
                             MG92B_RANGE, MG92B_RANGE, MG92B_RANGE, MG92B_RANGE,
                             MG92B_RANGE, MG92B_RANGE, MG92B_RANGE, MG92B_RANGE,
                             MG92B_RANGE, MG92B_RANGE, MG92B_RANGE, MG92B_RANGE
                            };
+int16_t servoMins[] =  {MG90D_MIN, MG90D_MIN, MG90D_MIN, MG90D_MIN,
+                            MG92B_MIN, MG92B_MIN, MG92B_MIN, MG92B_MIN,
+                            MG92B_MIN, MG92B_MIN, MG92B_MIN, MG92B_MIN,
+                            MG92B_MIN, MG92B_MIN, MG92B_MIN, MG92B_MIN
+                           };
+int16_t servoMaxs[] =  {MG90D_MAX, MG90D_MAX, MG90D_MAX, MG90D_MAX,
+                            MG92B_MAX, MG92B_MAX, MG92B_MAX, MG92B_MAX,
+                            MG92B_MAX, MG92B_MAX, MG92B_MAX, MG92B_MAX,
+                            MG92B_MAX, MG92B_MAX, MG92B_MAX, MG92B_MAX
+                           };                            
 
 #else
 byte servoAngleRanges[] =  {KUDO_RANGE, KUDO_RANGE, KUDO_RANGE, KUDO_RANGE,
@@ -283,7 +364,20 @@ byte servoAngleRanges[] =  {KUDO_RANGE, KUDO_RANGE, KUDO_RANGE, KUDO_RANGE,
                             KUDO_RANGE, KUDO_RANGE, KUDO_RANGE, KUDO_RANGE,
                             KUDO_RANGE, KUDO_RANGE, KUDO_RANGE, KUDO_RANGE,
                            };
+int16_t servoMins[] =  {KUDO_MIN, KUDO_MIN, KUDO_MIN, KUDO_MIN,
+                            KUDO_MIN, KUDO_MIN, KUDO_MIN, KUDO_MIN,
+                            KUDO_MIN, KUDO_MIN, KUDO_MIN, KUDO_MIN,
+                            KUDO_MIN, KUDO_MIN, KUDO_MIN, KUDO_MIN,
+                           };
+int16_t servoMaxs[] =  {KUDO_MAX, KUDO_MAX, KUDO_MAX, KUDO_MAX,
+                            KUDO_MAX, KUDO_MAX, KUDO_MAX, KUDO_MAX,
+                            KUDO_MAX, KUDO_MAX, KUDO_MAX, KUDO_MAX,
+                            KUDO_MAX, KUDO_MAX, KUDO_MAX, KUDO_MAX,
+                           };                                                      
 #endif
+#endif
+
+int16_t pwmRange[DOF] = {};
 float pulsePerDegree[DOF] = {};
 int8_t servoCalibs[DOF] = {};
 char currentAng[DOF] = {};
@@ -644,7 +738,7 @@ float adjust(byte i) {
 void saveCalib(int8_t *var) {
   for (byte i = 0; i < DOF; i++) {
     EEPROM.update(CALIB + i, var[i]);
-    calibratedDuty0[i] = SERVOMIN + PWM_RANGE / 2 + float(middleShift(i) + var[i]) * pulsePerDegree[i] * rotationDirection(i);
+    calibratedDuty0[i] = servoMins[i] + pwmRange[i] / 2 + float(middleShift(i) + var[i]) * pulsePerDegree[i] * rotationDirection(i);
   }
 }
 
@@ -654,7 +748,7 @@ void calibratedPWM(byte i, float angle) {
     angle = max(-5, angle);*/
   currentAng[i] = angle;
   int duty = calibratedDuty0[i] + angle * pulsePerDegree[i] * rotationDirection(i);
-  duty = max(SERVOMIN , min(SERVOMAX , duty));
+  duty = max(servoMins[i] , min(servoMaxs[i] , duty));
   pwm.setPWM(pin(i), 0, duty);
 }
 
@@ -671,6 +765,32 @@ void shutServos() {
   }
 }
 
+void printIndexList(byte len = DOF) {
+  PT("servo:    \t");
+  for (byte i = 0; i < len; i++) {
+    PT(i);
+    PT('\t');
+  }
+  PTL();
+}
+
+template <typename T> void printIntList(T * arr, byte len = DOF) {
+  for (byte i = 0; i < len; i++) {
+    PT((int)(arr[i]));
+    PT('\t');
+  }
+  PTL();
+}
+
+
+template <typename T> void printList(T * arr, byte len = DOF) {
+  for (byte i = 0; i < len; i++) {
+    PT((T)(arr[i]));
+    PT('\t');
+  }
+  PTL();
+}
+
 void transform( char * target,  float speedRatio = 1, byte offset = 0) {
   char *diff = new char[DOF - offset], maxDiff = 0;
   for (byte i = offset; i < DOF; i++) {
@@ -685,8 +805,8 @@ void transform( char * target,  float speedRatio = 1, byte offset = 0) {
       delayMicroseconds(100);
     }
   delete [] diff;
-  //  printList(currentAng);
-  //  PTL();
+    printList((int8_t *)currentAng); // was commented
+    PTL();    //was commented
 }
 
 void behavior(int n, char** skill, float *speedRatio, int *pause) {
